@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+__author__ = 'zeph'
+import getopt
+import sys
+from sqlhbase.intake import HBaseIntake
+
+def usage():
+    print """
+USAGE:
+$ ri-parseintake -d INDFAS -t 1234567890
+
+ADDONS: -i file_with_list_of_tables_to_INCLUDE
+        -e file_with_list_of_tables_to_EXCLUDE
+        -l just list the tables available
+"""
+
+if len(sys.argv) < 3:
+    usage()
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:],
+        "d:t:i:e:l", ["db=", "timestamp=", "include=", "exclude=", "listing="])
+except getopt.GetoptError as err:
+    # print help information and exit:
+    print str(err) # will print something like "option -a not recognized"
+    usage()
+    sys.exit(2)
+
+input_db = ""
+sql_file = None
+timestamp = ""
+include_list = ""
+exclude_list = ""
+listing = False
+for opt, arg in opts:
+    if opt in ('-d', '--db'):
+        input_db = arg
+    elif opt in ('-t', '--timestamp'):
+        timestamp = arg
+    elif opt in ('-i', '--include'):
+        include_list = arg
+    elif opt in ('-e', '--exclude'):
+        exclude_list = arg
+    elif opt in ('-l', '--listing'):
+        listing = True
+
+hbase = HBaseIntake(input_db)
+try: hbase.connect()
+except:
+    print hbase.get_namespaces()
+    sys.exit(2)
+
+print 'DB>', input_db
+if timestamp == "":
+    ava = hbase.get_dumps()
+    for day in ava: print day
+    print "DAY(DUMP)s AVAILABLE>",len(ava)
+    #print >> sys.stderr, hbase.prettify()
+    sys.exit(2)
+elif listing:
+    print "\n".join(hbase.cls_parser().get_tables(timestamp))
+else: print hbase.parse(timestamp, exclude_list, include_list)
+

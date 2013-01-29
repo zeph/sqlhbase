@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import getopt
+import sys
+from datetime import datetime
+from sqlhbase.mysql import MySQLDump
+
+def usage():
+    print """
+USAGE:
+$ tar xOf 01-20-00_all_databases.tar bob_live_hk.sql.gz | zcat | ...
+ or
+$ unzip -p production_sg_DAY_20130121.zip | ...
+
+then ...
+$ echo $SQL|ri-fastdump2hbase -d INDFAS
+
+ADDONs:
+"skip tables option" -s, --skiptable=
+ -s table1,table2,table3
+# tables to absolutely avoid to ingest, like "alice_message"
+
+"forced_timestamp" -t, --timestamp=
+ -t 2013-01-20
+# in case we have no timestamp at the bottom of the dump
+"""
+
+if len(sys.argv) < 3:
+    usage()
+    sys.exit(2)
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "d:f:s:t:", ["db=", "sqlfile=", "skiptable=", "timestamp="])
+except getopt.GetoptError as err:
+    # print help information and exit:
+    print str(err) # will print something like "option -a not recognized"
+    usage()
+    sys.exit(2)
+
+input_db = ""
+sql_file = None
+skip_tables = []
+forced_timestamp = ""
+for opt, arg in opts:
+    if opt in ('-d', '--db'):
+        input_db = arg
+    elif opt in ('-f', '--sqlfile'):
+        sql_file = arg
+    elif opt in ('-s', '--skiptable'):
+        skip_tables = arg.split(",")
+    elif opt in ('-t', '--timestamp'):
+        forced_timestamp = arg
+
+print 'DB>', input_db
+
+# get the argument file (uncompressed MySQL dump)
+if sql_file is not None:
+    f = open(sql_file)
+    print MySQLDump(open(sql_file), input_db, skip_tables, forced_timestamp)
+    f.close()
+    sys.exit(0)
+
+# ... or read what they pipe me into stdin
+print MySQLDump(sys.stdin, input_db, skip_tables, forced_timestamp)
+
